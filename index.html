@@ -435,6 +435,118 @@ img, canvas, input, select, button {
   }
 </style>
 
+
+<style id="v5-editor-polish">
+  .editor-actions {
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-top:8px;
+  }
+
+  .zoom-row {
+    display:grid;
+    grid-template-columns:36px minmax(0,1fr) 36px;
+    gap:8px;
+    align-items:center;
+  }
+
+  .zoom-btn {
+    width:36px;
+    height:36px;
+    padding:0;
+    border-radius:10px;
+    display:grid;
+    place-items:center;
+    font-size:20px;
+    line-height:1;
+    background:var(--surface);
+    color:var(--text);
+    border:1px solid var(--line);
+    transition:transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+  }
+
+  .zoom-btn:hover {
+    transform:translateY(-2px);
+    border-color:var(--accent);
+    box-shadow:0 6px 14px rgba(37,99,235,.12);
+  }
+
+  .zoom-btn:active {
+    transform:scale(.94);
+  }
+
+  input[type=range] {
+    width:100%;
+    margin:0;
+    accent-color:var(--accent);
+    cursor:pointer;
+  }
+
+  /* Make the native range control use its full visual track area. */
+  .zoom-slider-wrap {
+    width:100%;
+    min-width:0;
+    padding:0;
+  }
+
+  .zoom-value {
+    text-align:center;
+    color:var(--muted);
+    font-size:12px;
+    font-weight:700;
+    margin-top:6px;
+  }
+
+  .upload-box {
+    flex:1 1 240px;
+    min-width:0;
+    padding:14px;
+    border:1px dashed var(--line);
+    border-radius:13px;
+    background:var(--surface);
+    transition:border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+  }
+
+  .upload-box:hover {
+    border-color:var(--accent);
+    box-shadow:0 7px 18px rgba(37,99,235,.08);
+    transform:translateY(-1px);
+  }
+
+  .upload-box input[type=file] {
+    width:100%;
+  }
+
+  .output-info {
+    margin-top:12px;
+    padding:11px 12px;
+    border-radius:10px;
+    background:var(--soft);
+    color:var(--muted);
+    font-size:12px;
+    line-height:1.45;
+  }
+
+  .output-info strong {
+    color:var(--text);
+  }
+
+  .download-main {
+    flex:1;
+    min-width:145px;
+  }
+
+  @media(max-width:650px) {
+    .editor-actions {
+      flex-wrap:wrap;
+    }
+    .download-main {
+      width:100%;
+    }
+  }
+</style>
+
 </head><body>
 
 <header class="site-header">
@@ -496,8 +608,26 @@ img, canvas, input, select, button {
 </select></div>
 <div class="editor"><div><div class="stage" id="stage"><canvas id="canvas"></canvas><div class="crop" id="crop"></div></div>
 <p class="hint">Drag the photo to move it. Use Zoom to adjust it. The white box is what will be downloaded.</p></div>
-<div class="controls"><label for="zoom">Zoom</label><input id="zoom" type="range" min="1" max="3" step=".01" value="1" disabled>
-<div class="row"><button id="reset" disabled>Reset</button><button id="download" disabled>Download Photo</button></div></div></div>
+<div class="controls">
+  <label for="zoom">Zoom</label>
+  <div class="zoom-row">
+    <button class="zoom-btn" id="zoomOut" type="button" aria-label="Zoom out" disabled>−</button>
+    <div class="zoom-slider-wrap">
+      <input id="zoom" type="range" min="1" max="3" step=".01" value="1" disabled>
+      <div class="zoom-value" id="zoomValue">100%</div>
+    </div>
+    <button class="zoom-btn" id="zoomIn" type="button" aria-label="Zoom in" disabled>+</button>
+  </div>
+
+  <div class="output-info" id="outputInfo">
+    Output: <strong>600 × 600 px</strong> at 300 DPI-equivalent.
+  </div>
+
+  <div class="editor-actions">
+    <button id="reset" disabled>↺ Reset</button>
+    <button class="download-main" id="download" disabled>Download Photo</button>
+  </div>
+</div></div>
 <p id="status">Choose a photo to begin.</p><p class="hint">Privacy: this page processes the photo in your browser; it does not upload the photo. Always check current requirements before using a photo for an application.</p>
 </div>
 
@@ -527,7 +657,7 @@ img, canvas, input, select, button {
 </script>
 
 <script>
-const $=id=>document.getElementById(id),file=$('file'),size=$('size'),zoomIn=$('zoom'),reset=$('reset'),download=$('download'),status=$('status'),stage=$('stage'),canvas=$('canvas'),ctx=canvas.getContext('2d'),crop=$('crop');
+const $=id=>document.getElementById(id),file=$('file'),size=$('size'),zoomSlider=$('zoom'),zoomOut=$('zoomOut'),zoomPlus=$('zoomIn'),zoomValue=$('zoomValue'),reset=$('reset'),download=$('download'),status=$('status'),stage=$('stage'),canvas=$('canvas'),ctx=canvas.getContext('2d'),crop=$('crop'),outputInfo=$('outputInfo');
 const sizes={
   '2x2':[2,2],
   '1x1':[1,1],
@@ -540,17 +670,42 @@ const sizes={
   '5x5cm':[5/2.54,5/2.54]
 };
 let img=null,z=1,x=0,y=0,drag=false,lx=0,ly=0;
+
+function outputPixels(){
+  const [wi,hi]=sizes[size.value];
+  return [Math.round(wi*300),Math.round(hi*300)];
+}
+
+function updateZoomUI(){
+  zoomValue.textContent=Math.round(z*100)+'%';
+}
+
+function updateOutputInfo(){
+  const [ow,oh]=outputPixels();
+  outputInfo.innerHTML='Output: <strong>'+ow+' × '+oh+' px</strong> at 300 DPI-equivalent.';
+}
+
+function setZoom(value){
+  z=Math.min(3,Math.max(1,+value));
+  zoomSlider.value=z;
+  updateZoomUI();
+  draw();
+}
 function frame(){let [w,h]=sizes[size.value];crop.style.aspectRatio=w+'/'+h}
 function fit(){let s=Math.max(stage.clientWidth/img.width,stage.clientHeight/img.height)*z;return [img.width*s,img.height*s]}
 function draw(){if(!img)return;let w=stage.clientWidth,h=stage.clientHeight;canvas.width=w*devicePixelRatio;canvas.height=h*devicePixelRatio;ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);ctx.clearRect(0,0,w,h);let [iw,ih]=fit();ctx.drawImage(img,(w-iw)/2+x,(h-ih)/2+y,iw,ih)}
-file.onchange=()=>{let f=file.files[0];if(!f)return;let r=new FileReader();r.onload=e=>{img=new Image();img.onload=()=>{z=1;x=0;y=0;zoomIn.value=1;zoomIn.disabled=reset.disabled=download.disabled=false;frame();draw();status.textContent='Photo loaded. Drag it into position, adjust zoom, then download.'};img.src=e.target.result};r.readAsDataURL(f)};
-size.onchange=()=>{frame();draw()};zoomIn.oninput=()=>{z=+zoomIn.value;draw()};reset.onclick=()=>{z=1;x=0;y=0;zoomIn.value=1;draw()};
+file.onchange=()=>{let f=file.files[0];if(!f)return;let r=new FileReader();r.onload=e=>{img=new Image();img.onload=()=>{z=1;x=0;y=0;zoomSlider.value=1;zoomSlider.disabled=zoomOut.disabled=zoomPlus.disabled=reset.disabled=download.disabled=false;updateZoomUI();updateOutputInfo();frame();draw();status.textContent='Photo loaded. Drag it into position, adjust zoom, then download.'};img.src=e.target.result};r.readAsDataURL(f)};
+size.onchange=()=>{frame();updateOutputInfo();draw()};
+zoomSlider.oninput=()=>setZoom(zoomSlider.value);
+zoomOut.onclick=()=>setZoom(z-.1);
+zoomPlus.onclick=()=>setZoom(z+.1);
+reset.onclick=()=>{z=1;x=0;y=0;setZoom(1);};
 function pos(e){let r=stage.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
 stage.onpointerdown=e=>{if(!img)return;drag=true;stage.setPointerCapture(e.pointerId);let p=pos(e);lx=p.x;ly=p.y};
 stage.onpointermove=e=>{if(!drag)return;let p=pos(e);x+=p.x-lx;y+=p.y-ly;lx=p.x;ly=p.y;draw()};
 stage.onpointerup=stage.onpointercancel=()=>drag=false;
-download.onclick=()=>{let [wi,hi]=sizes[size.value],ow=Math.round(wi*300),oh=Math.round(hi*300),out=document.createElement('canvas');out.width=ow;out.height=oh;let o=out.getContext('2d'),sw=stage.clientWidth,sh=stage.clientHeight,fw=sw*.78,fh=fw*(hi/wi),fx=(sw-fw)/2,fy=(sh-fh)/2,[iw,ih]=fit(),ix=(sw-iw)/2+x,iy=(sh-ih)/2+y,sx=(fx-ix)/iw*img.width,sy=(fy-iy)/ih*img.height,srcw=fw/iw*img.width,srch=fh/ih*img.height;o.drawImage(img,sx,sy,srcw,srch,0,0,ow,oh);let a=document.createElement('a');a.download='photo-'+size.value+'.jpg';a.href=out.toDataURL('image/jpeg',.95);a.click();status.textContent='Downloaded!'};
-onresize=()=>{frame();draw()};frame();
+download.onclick=()=>{let [wi,hi]=sizes[size.value], [ow,oh]=outputPixels(), out=document.createElement('canvas');out.width=ow;out.height=oh;let o=out.getContext('2d'),sw=stage.clientWidth,sh=stage.clientHeight,fw=sw*.78,fh=fw*(hi/wi),fx=(sw-fw)/2,fy=(sh-fh)/2,[iw,ih]=fit(),ix=(sw-iw)/2+x,iy=(sh-ih)/2+y,sx=(fx-ix)/iw*img.width,sy=(fy-iy)/ih*img.height,srcw=fw/iw*img.width,srch=fh/ih*img.height;o.drawImage(img,sx,sy,srcw,srch,0,0,ow,oh);let a=document.createElement('a');a.download='photo-'+size.value+'.jpg';a.href=out.toDataURL('image/jpeg',.95);a.click();status.textContent='Downloaded!'};
+onresize=()=>{frame();draw()};frame();updateZoomUI();updateOutputInfo();
 </script>
 <section class="product-note">
   <h2>🔒 Your privacy matters</h2>
