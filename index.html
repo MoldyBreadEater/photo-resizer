@@ -32,9 +32,32 @@ body {
 img, canvas, input, select, button {
   max-width: 100%;
 }
+</style>
 
-.container, .card, .editor, .stage-wrap, .controls {
-  max-width: 100%;
+
+<style id="stage-size-fix">
+.stage-wrap {
+  width: min(100%, 520px);
+  max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.stage {
+  width: 100%;
+  max-width: 520px;
+  aspect-ratio: 1 / 1;
+}
+
+@media (max-width: 600px) {
+  .stage-wrap {
+    width: min(100%, 360px);
+    max-width: 360px;
+  }
+
+  .stage {
+    max-width: 360px;
+  }
 }
 </style>
 
