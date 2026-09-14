@@ -547,6 +547,37 @@ img, canvas, input, select, button {
   }
 </style>
 
+
+<style id="v5-download-fix">
+  .editor-actions {
+    width:100%;
+    box-sizing:border-box;
+  }
+
+  .editor-actions button {
+    box-sizing:border-box;
+    max-width:100%;
+  }
+
+  .download-main {
+    flex:1 1 0;
+    width:auto;
+    min-width:0;
+  }
+
+  @media(max-width:650px) {
+    .editor-actions {
+      width:100%;
+    }
+
+    .editor-actions .download-main {
+      width:100%;
+      flex:1 1 100%;
+      min-width:0;
+    }
+  }
+</style>
+
 </head><body>
 
 <header class="site-header">
