@@ -12,7 +12,33 @@ canvas{width:100%;height:100%;display:block}.crop{position:absolute;left:50%;top
 .controls{background:#f7f7f7;border-radius:12px;padding:15px}.controls label{display:block;font-weight:bold;margin-bottom:7px}
 input[type=range]{width:100%}#status{min-height:20px;color:#555}
 @media(max-width:650px){.editor{grid-template-columns:1fr}}
-</style></head><body>
+</style>
+<style id="mobile-overflow-fix">
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+img, canvas, input, select, button {
+  max-width: 100%;
+}
+
+.container, .card, .editor, .stage-wrap, .controls {
+  max-width: 100%;
+}
+</style>
+
+</head><body>
 <div class="card">
 <h1>📸 PH Photo Resizer</h1><p class="sub">Crop, zoom, and resize a photo in your browser.</p>
 <div class="row"><input id="file" type="file" accept="image/*"><select id="size">
