@@ -650,6 +650,40 @@ img, canvas, input, select, button {
 }
 </script>
 
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+<style id="word-download-style">
+  #downloadWord {
+    white-space:nowrap;
+  }
+  @media(max-width:650px) {
+    #downloadWord {
+      width:100%;
+    }
+  }
+</style>
+
+<style id="v8-button-layout-fix">
+  .editor-actions {
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:8px !important;
+    width:100% !important;
+    box-sizing:border-box;
+  }
+
+  .editor-actions button {
+    width:100% !important;
+    min-width:0 !important;
+    max-width:100% !important;
+    box-sizing:border-box;
+  }
+
+  .editor-actions .download-main {
+    flex:none !important;
+  }
+</style>
+
 </head><body>
 
 <header class="site-header">
@@ -729,6 +763,7 @@ img, canvas, input, select, button {
   <div class="editor-actions">
     <button id="reset" disabled>↺ Reset</button>
     <button class="download-main" id="download" disabled>Download Photo</button>
+    <button id="downloadWord" disabled>📄 Word</button>
   </div>
 </div></div>
 <p id="status">Choose a photo to begin.</p><p class="hint">Privacy: this page processes the photo in your browser; it does not upload the photo. Always check current requirements before using a photo for an application.</p>
@@ -760,7 +795,7 @@ img, canvas, input, select, button {
 </script>
 
 <script>
-const $=id=>document.getElementById(id),file=$('file'),size=$('size'),zoomSlider=$('zoom'),zoomOut=$('zoomOut'),zoomPlus=$('zoomIn'),zoomValue=$('zoomValue'),reset=$('reset'),download=$('download'),status=$('status'),stage=$('stage'),canvas=$('canvas'),ctx=canvas.getContext('2d'),crop=$('crop'),outputInfo=$('outputInfo');
+const $=id=>document.getElementById(id),file=$('file'),size=$('size'),zoomSlider=$('zoom'),zoomOut=$('zoomOut'),zoomPlus=$('zoomIn'),zoomValue=$('zoomValue'),reset=$('reset'),download=$('download'),downloadWord=$('downloadWord'),status=$('status'),stage=$('stage'),canvas=$('canvas'),ctx=canvas.getContext('2d'),crop=$('crop'),outputInfo=$('outputInfo');
 const sizes={
   '2x2':[2,2],
   '1x1':[1,1],
@@ -797,7 +832,7 @@ function setZoom(value){
 function frame(){let [w,h]=sizes[size.value];crop.style.aspectRatio=w+'/'+h}
 function fit(){let s=Math.max(stage.clientWidth/img.width,stage.clientHeight/img.height)*z;return [img.width*s,img.height*s]}
 function draw(){if(!img)return;let w=stage.clientWidth,h=stage.clientHeight;canvas.width=w*devicePixelRatio;canvas.height=h*devicePixelRatio;ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);ctx.clearRect(0,0,w,h);let [iw,ih]=fit();ctx.drawImage(img,(w-iw)/2+x,(h-ih)/2+y,iw,ih)}
-file.onchange=()=>{let f=file.files[0];if(!f)return;let r=new FileReader();r.onload=e=>{img=new Image();img.onload=()=>{z=1;x=0;y=0;zoomSlider.value=1;zoomSlider.disabled=zoomOut.disabled=zoomPlus.disabled=reset.disabled=download.disabled=false;updateZoomUI();updateOutputInfo();frame();draw();status.textContent='Photo loaded. Drag it into position, adjust zoom, then download.'};img.src=e.target.result};r.readAsDataURL(f)};
+file.onchange=()=>{let f=file.files[0];if(!f)return;let r=new FileReader();r.onload=e=>{img=new Image();img.onload=()=>{z=1;x=0;y=0;zoomSlider.value=1;zoomSlider.disabled=zoomOut.disabled=zoomPlus.disabled=reset.disabled=download.disabled=downloadWord.disabled=false;updateZoomUI();updateOutputInfo();frame();draw();status.textContent='Photo loaded. Drag it into position, adjust zoom, then download.'};img.src=e.target.result};r.readAsDataURL(f)};
 size.onchange=()=>{frame();updateOutputInfo();draw()};
 zoomSlider.oninput=()=>setZoom(zoomSlider.value);
 zoomOut.onclick=()=>setZoom(z-.1);
@@ -828,6 +863,115 @@ download.onclick=()=>{let [wi,hi]=sizes[size.value], [ow,oh]=outputPixels(), out
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
   status.textContent='Downloaded! 300 DPI metadata included.';
 })};
+
+function dataUrlToBase64(dataUrl){
+  return dataUrl.split(',')[1];
+}
+
+function escapeXml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                  .replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+}
+
+downloadWord.onclick=async()=>{
+  if(!img || typeof JSZip==='undefined'){
+    status.textContent='Word download is unavailable right now.';
+    return;
+  }
+
+  const [wi,hi]=sizes[size.value];
+  const [ow,oh]=outputPixels();
+
+  // Render the exact same crop as the normal JPEG download.
+  const out=document.createElement('canvas');
+  out.width=ow; out.height=oh;
+  const o=out.getContext('2d');
+  const sw=stage.clientWidth, sh=stage.clientHeight;
+  const fw=sw*.78, fh=fw*(hi/wi), fx=(sw-fw)/2, fy=(sh-fh)/2;
+  const [iw,ih]=fit(), ix=(sw-iw)/2+x, iy=(sh-ih)/2+y;
+  const sx=(fx-ix)/iw*img.width, sy=(fy-iy)/ih*img.height;
+  const srcw=fw/iw*img.width, srch=fh/ih*img.height;
+  o.drawImage(img,sx,sy,srcw,srch,0,0,ow,oh);
+
+  const jpegData=out.toDataURL('image/jpeg',.95);
+  const imageBase64=dataUrlToBase64(jpegData);
+
+  // Word uses English Metric Units (EMU): 914400 EMU = 1 inch.
+  const cx=Math.round(wi*914400);
+  const cy=Math.round(hi*914400);
+  const filename='photo-'+size.value+'.jpg';
+
+  const zip=new JSZip();
+  zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Default Extension="jpg" ContentType="image/jpeg"/>
+<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>`);
+
+  zip.file('_rels/.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`);
+
+  zip.file('word/_rels/document.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${filename}"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`);
+
+  zip.file('word/styles.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:docDefaults><w:rPrDefault><w:rPr><w:lang w:val="en-US"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr/></w:pPrDefault></w:docDefaults>
+</w:styles>`);
+
+  zip.file('word/document.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+ xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+ xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+ xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+ xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+<w:body>
+<w:p>
+<w:r><w:drawing>
+<wp:inline distT="0" distB="0" distL="0" distR="0">
+<wp:extent cx="${cx}" cy="${cy}"/>
+<wp:docPr id="1" name="PH Photo Resizer"/>
+<a:graphic>
+<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+<pic:pic>
+<pic:nvPicPr><pic:cNvPr id="0" name="${escapeXml(filename)}"/><pic:cNvPicPr/></pic:nvPicPr>
+<pic:blipFill><a:blip r:embed="rId1"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>
+<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>
+</pic:pic>
+</a:graphicData>
+</a:graphic>
+</wp:inline>
+</w:drawing></w:r>
+</w:p>
+<w:sectPr/>
+</w:body>
+</w:document>`);
+
+  zip.file('word/media/'+filename, imageBase64, {base64:true});
+
+  status.textContent='Creating Word file…';
+  const blob=await zip.generateAsync({
+    type:'blob',
+    mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    compression:'DEFLATE'
+  });
+
+  const a=document.createElement('a');
+  a.download='photo-'+size.value+'-Word.docx';
+  a.href=URL.createObjectURL(blob);
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  status.textContent='Word file downloaded at the exact selected size.';
+};
+
 onresize=()=>{frame();draw()};frame();updateZoomUI();updateOutputInfo();
 </script>
 <section class="product-note">
