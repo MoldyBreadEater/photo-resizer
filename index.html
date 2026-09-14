@@ -266,6 +266,175 @@ img, canvas, input, select, button {
   }
 </style>
 
+
+<style id="v4-features">
+  .header-actions {
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+
+  .theme-toggle {
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    padding:9px 12px;
+    border:1px solid var(--line);
+    border-radius:999px;
+    background:var(--surface);
+    color:var(--text);
+    box-shadow:0 3px 12px rgba(20,35,70,.06);
+    transition:transform .18s ease, box-shadow .18s ease, background .25s ease;
+  }
+
+  .theme-toggle:hover {
+    transform:translateY(-2px);
+    box-shadow:0 7px 18px rgba(20,35,70,.12);
+  }
+
+  .theme-toggle:active {
+    transform:translateY(0) scale(.97);
+  }
+
+  .theme-toggle span:last-child {
+    font-size:12px;
+    font-weight:700;
+  }
+
+  /* Make the file picker feel like an interactive control. */
+  #file {
+    cursor:pointer;
+    transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  }
+
+  #file:hover {
+    transform:scale(1.025);
+    border-color:var(--accent);
+    box-shadow:0 7px 18px rgba(37,99,235,.12);
+  }
+
+  /* The four how-it-works cards subtly grow on hover. */
+  .step {
+    transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+  }
+
+  .step:hover {
+    transform:translateY(-5px) scale(1.025);
+    box-shadow:0 12px 26px rgba(20,35,70,.11);
+    border-color:rgba(37,99,235,.28);
+  }
+
+  /* Animated-looking custom select shell + smooth focus state.
+     The browser still controls the actual option popup for reliability. */
+  .size-select-wrap {
+    position:relative;
+    display:inline-block;
+    min-width:230px;
+  }
+
+  .size-select-wrap::after {
+    content:"⌄";
+    position:absolute;
+    right:14px;
+    top:50%;
+    transform:translateY(-52%);
+    color:var(--muted);
+    pointer-events:none;
+    font-size:17px;
+    transition:transform .2s ease, color .2s ease;
+  }
+
+  #size {
+    width:100%;
+    appearance:none;
+    -webkit-appearance:none;
+    background:var(--surface);
+    color:var(--text);
+    border:1px solid var(--line);
+    padding-right:42px;
+    cursor:pointer;
+    transition:border-color .2s ease, box-shadow .2s ease, transform .15s ease;
+  }
+
+  #size:hover {
+    border-color:var(--accent);
+  }
+
+  #size:focus {
+    outline:none;
+    border-color:var(--accent);
+    box-shadow:0 0 0 4px rgba(37,99,235,.12);
+  }
+
+  .size-select-wrap:focus-within::after {
+    transform:translateY(-52%) rotate(180deg);
+    color:var(--accent);
+  }
+
+  /* Dark theme */
+  body.dark {
+    --bg:#0f172a;
+    --surface:#172033;
+    --text:#f3f6fb;
+    --muted:#aab5c7;
+    --line:#2b3850;
+    --soft:#1e3154;
+    --shadow:0 14px 38px rgba(0,0,0,.28);
+  }
+
+  body.dark .site-header {
+    background:rgba(15,23,42,.94);
+  }
+
+  body.dark .card {
+    background:var(--surface);
+    box-shadow:var(--shadow);
+  }
+
+  body.dark .controls {
+    background:#111a2b;
+  }
+
+  body.dark input,
+  body.dark select {
+    background:#111a2b;
+    color:var(--text);
+    border-color:var(--line);
+  }
+
+  body.dark button {
+    background:#e8eef9;
+    color:#111827;
+  }
+
+  body.dark .theme-toggle {
+    background:#172033;
+    color:var(--text);
+    border-color:var(--line);
+  }
+
+  body.dark .product-note,
+  body.dark .step {
+    background:var(--surface);
+    border-color:var(--line);
+  }
+
+  body.dark .stage {
+    background:#263247;
+  }
+
+  body.dark #status {
+    color:var(--muted);
+  }
+
+  @media (max-width:650px) {
+    .header-actions { gap:6px; }
+    .theme-toggle { padding:8px 10px; }
+    .theme-toggle span:last-child { display:none; }
+    .size-select-wrap { min-width:0; width:100%; }
+  }
+</style>
+
 </head><body>
 
 <header class="site-header">
@@ -274,7 +443,12 @@ img, canvas, input, select, button {
       <div class="brand-mark">📸</div>
       <span>PH Photo Resizer</span>
     </div>
-    <div class="privacy-badge">🔒 Photos stay on your device</div>
+    <div class="header-actions">
+      <div class="privacy-badge">🔒 Photos stay on your device</div>
+      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Switch theme" title="Switch theme">
+        <span id="themeIcon">🌙</span><span id="themeLabel">Dark</span>
+      </button>
+    </div>
   </div>
 </header>
 
@@ -309,8 +483,16 @@ img, canvas, input, select, button {
 
 <div class="card">
 <h1>📸 PH Photo Resizer</h1><p class="sub">Crop, zoom, and resize a photo in your browser.</p>
-<div class="row"><input id="file" type="file" accept="image/*"><select id="size">
-<option value="2x2">2 × 2 inches</option><option value="1x1">1 × 1 inch</option><option value="35x45">35 × 45 mm</option><option value="45x35">45 × 35 mm</option>
+<div class="row"><input id="file" type="file" accept="image/*"><div class="size-select-wrap"><select id="size">
+<option value="2x2">2 × 2 inches</option>
+<option value="1x1">1 × 1 inch</option>
+<option value="35x45">35 × 45 mm</option>
+<option value="45x35">45 × 35 mm</option>
+<option value="30x40">30 × 40 mm</option>
+<option value="40x60">40 × 60 mm</option>
+<option value="3x4cm">3 × 4 cm</option>
+<option value="4x6cm">4 × 6 cm</option>
+<option value="5x5cm">5 × 5 cm</option>
 </select></div>
 <div class="editor"><div><div class="stage" id="stage"><canvas id="canvas"></canvas><div class="crop" id="crop"></div></div>
 <p class="hint">Drag the photo to move it. Use Zoom to adjust it. The white box is what will be downloaded.</p></div>
@@ -318,9 +500,45 @@ img, canvas, input, select, button {
 <div class="row"><button id="reset" disabled>Reset</button><button id="download" disabled>Download Photo</button></div></div></div>
 <p id="status">Choose a photo to begin.</p><p class="hint">Privacy: this page processes the photo in your browser; it does not upload the photo. Always check current requirements before using a photo for an application.</p>
 </div>
+
+<script id="theme-script">
+(() => {
+  const toggle = document.getElementById('themeToggle');
+  const icon = document.getElementById('themeIcon');
+  const label = document.getElementById('themeLabel');
+  if (!toggle) return;
+
+  function applyTheme(dark) {
+    document.body.classList.toggle('dark', dark);
+    icon.textContent = dark ? '☀️' : '🌙';
+    label.textContent = dark ? 'Light' : 'Dark';
+    toggle.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+    localStorage.setItem('ph-photo-theme', dark ? 'dark' : 'light');
+  }
+
+  const saved = localStorage.getItem('ph-photo-theme');
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  applyTheme(saved ? saved === 'dark' : prefersDark);
+
+  toggle.addEventListener('click', () => {
+    applyTheme(!document.body.classList.contains('dark'));
+  });
+})();
+</script>
+
 <script>
 const $=id=>document.getElementById(id),file=$('file'),size=$('size'),zoomIn=$('zoom'),reset=$('reset'),download=$('download'),status=$('status'),stage=$('stage'),canvas=$('canvas'),ctx=canvas.getContext('2d'),crop=$('crop');
-const sizes={ '2x2':[2,2], '1x1':[1,1], '35x45':[35/25.4,45/25.4], '45x35':[45/25.4,35/25.4] };
+const sizes={
+  '2x2':[2,2],
+  '1x1':[1,1],
+  '35x45':[35/25.4,45/25.4],
+  '45x35':[45/25.4,35/25.4],
+  '30x40':[30/25.4,40/25.4],
+  '40x60':[40/25.4,60/25.4],
+  '3x4cm':[3/2.54,4/2.54],
+  '4x6cm':[4/2.54,6/2.54],
+  '5x5cm':[5/2.54,5/2.54]
+};
 let img=null,z=1,x=0,y=0,drag=false,lx=0,ly=0;
 function frame(){let [w,h]=sizes[size.value];crop.style.aspectRatio=w+'/'+h}
 function fit(){let s=Math.max(stage.clientWidth/img.width,stage.clientHeight/img.height)*z;return [img.width*s,img.height*s]}
